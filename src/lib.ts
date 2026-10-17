@@ -1,10 +1,9 @@
 export type Lang = "en" | "hi";
 export type Bi = { en: string; hi: string };
-export type SectionKey = "dishes" | "gallery" | "feature" | "reviews" | "visit" | "build";
-/** Opening hours per weekday, Sunday first. Each day is a flat list of [open, close, open, close…] in decimal
- *  hours, so a split morning/evening day has four numbers and a closed day is empty. An empty list overall
- *  means the listing has no dependable timings and none are shown. */
-export type Hours = number[][];
+export type SceneKey = "barbell" | "plates" | "dumbbells" | "kettlebell" | "neon" | "lotus" | "gada";
+export type SectionKey = "dishes" | "gallery" | "feature" | "reviews" | "visit" | "build" | "results";
+/** Opening hours per weekday, Sunday first: a list of [open, close] ranges in decimal hours. [] is closed, [[0, 24]] is 24 hours. */
+export type Hours = [number, number][][];
 
 export type Theme = {
   dark: boolean;
@@ -36,30 +35,41 @@ export type Site = {
   lat: number;
   lon: number;
   hours: Hours;
+  price?: Bi;
   theme: Theme;
-  hero: { title: [Bi, Bi]; proof: Bi; fallback: string; backdrop?: string; /** Real photos the hero crossfades through. */ slides?: string[] };
+  scene: SceneKey;
+  align: "left" | "right";
+  hero: { title: [Bi, Bi]; proof: Bi; fallback: string; /** Full-bleed restaurant photo behind a photoreal scene. */ backdrop?: string };
   marquee: string[];
   dishes: { title: Bi; body: Bi; layout: "list" | "cards"; items: Dish[] };
   gallery: { title: Bi; layout: "strip" | "mosaic"; photos: Photo[] };
   feature: Feature;
-  reviews: { title: Bi; rating: number; dist: [number, number, number, number, number]; quotes: Review[] };
+  reviews: { title: Bi; rating: number; /** 5★ first. Leave out when unknown and give count instead. */ dist?: [number, number, number, number, number]; count?: number; quotes: Review[]; /** Optional photo washed behind the section. */ bg?: string };
   visit: { title: Bi; img: string; alt: string; address: Bi; note?: Bi };
   waHello: Bi;
   order: SectionKey[];
+  /** Scroll story told over the hero scene: chapter 0 is the hero copy, these follow it. */
+  story?: Chapter[];
   build?: Build;
+  /** Real numbers members quoted in their reviews, e.g. "lost 15 kg in 3 months". */
+  results?: { title: Bi; body: Bi; items: Result[] };
 };
 
-/** Tap-to-build enquiry that ends in a pre-filled WhatsApp message. */
+export type Result = { value: string; unit: Bi; label: Bi; quote: string };
+
+export type Chapter = { kicker: Bi; title: Bi; quote?: string };
+
+/** Tap-to-build order or table request that ends in a pre-filled WhatsApp message. */
 export type Build = {
   title: Bi;
   body: Bi;
-  /** Things to tick: goals, classes or facilities named in the reviews. */
+  /** Order mode: dishes from the reviews with + / − counters. */
   items?: Bi[];
-  /** Pick one: who it is for, or the kind of visit. */
+  /** Pick one: seating, occasion or thali. */
   pick?: { label: Bi; options: { name: Bi; note?: Bi }[] };
   people?: boolean;
   when?: boolean;
-  /** Message opener, e.g. "Hi PS Fitness, I'd like to join:". */
+  /** Message opener, e.g. "Hi Rao Restaurant, I'd like to order". */
   hello: Bi;
 };
 
@@ -90,28 +100,20 @@ export const fmtHour = (h: number) => {
   return `${h12}${mm ? `:${String(mm).padStart(2, "0")}` : ""} ${hh < 12 ? "AM" : "PM"}`;
 };
 
-/** A day's flat hours as [open, close] pairs. */
-export const ranges = (day: number[]) => {
-  const out: [number, number][] = [];
-  for (let i = 0; i + 1 < day.length; i += 2) out.push([day[i], day[i + 1]]);
-  return out;
-};
-
-/** Live open state in IST across split shifts and closed days. Null when the site shows no timings. */
-export function openState(hours: Hours, now: Date): { open: boolean; at: number } | null {
-  if (!hours.length) return null;
+/** Live open state in IST across split shifts. at = -1 means open round the clock. */
+export function openState(hours: Hours, now: Date): { open: boolean; at: number } {
   const ist = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
   const day = ist.getDay();
   const t = ist.getHours() + ist.getMinutes() / 60;
-  for (const [o, c] of ranges(hours[day])) {
-    if (t >= o && t < c) return { open: true, at: c };
-    if (t < o) return { open: false, at: o };
-  }
+  if (hours.every((d) => d.length === 1 && d[0][0] === 0 && d[0][1] === 24)) return { open: true, at: -1 };
+  for (const [o, c] of hours[day]) if (t >= o && t < c) return { open: true, at: c };
+  const later = hours[day].find(([o]) => o > t);
+  if (later) return { open: false, at: later[0] };
   for (let i = 1; i <= 7; i++) {
-    const next = ranges(hours[(day + i) % 7]);
-    if (next.length) return { open: false, at: next[0][0] };
+    const next = hours[(day + i) % 7][0];
+    if (next) return { open: false, at: next[0] };
   }
-  return null;
+  return { open: false, at: 0 };
 }
 
 export const DAYS: Record<Lang, string[]> = {
@@ -119,15 +121,12 @@ export const DAYS: Record<Lang, string[]> = {
   hi: ["रवि", "सोम", "मंगल", "बुध", "गुरु", "शुक्र", "शनि"],
 };
 
-/** Interface strings shared by every fitness site. */
+/** Interface strings shared by every gym site. */
 export const UI = {
   en: {
-    open: (t: string) => `Open now · till ${t}`,
-    allday: "Open now · 24 hours",
-    h24: "Open 24 hours",
+    open: (t: string) => (t ? `Open now · till ${t}` : "Open now · 24 hours"),
     closed: (t: string) => `Closed now · opens ${t}`,
-    closedDay: "Closed",
-    call: "Call to enquire",
+    call: "Call the gym",
     callShort: "Call",
     whatsapp: "WhatsApp",
     directions: "Directions",
@@ -136,27 +135,29 @@ export const UI = {
     hours: "Hours",
     today: "Today",
     phone: "Phone",
+    drag: "Drag to turn it around",
     scroll: "Scroll",
     kmAway: (n: string) => `${n} km`,
     outOf: "out of 5",
     lang: "Language",
     mapTitle: "Map",
+    from: "from",
+    pick: "Pick one",
     people: "People",
     day: "Day",
     time: "Time",
-    days: ["Today", "Tomorrow", "This weekend"],
-    times: ["Morning", "Afternoon", "Evening"],
+    days: ["Today", "Tomorrow", "This week"],
+    times: ["Morning batch", "Evening batch"],
     send: "Send on WhatsApp",
-    empty: "Tap your choices to fill this in",
-    items: "Interested in",
+    empty: "Pick your goal to start",
+    items: "Items",
+    closedDay: "Closed",
+    open24: "Open 24 hours",
   },
   hi: {
-    open: (t: string) => `अभी खुला है · ${t} तक`,
-    allday: "अभी खुला है · 24 घंटे",
-    h24: "24 घंटे खुला",
+    open: (t: string) => (t ? `अभी खुला है · ${t} तक` : "अभी खुला है · 24 घंटे"),
     closed: (t: string) => `अभी बंद है · ${t} खुलेगा`,
-    closedDay: "बंद",
-    call: "जानकारी के लिए कॉल करें",
+    call: "जिम को कॉल करें",
     callShort: "कॉल",
     whatsapp: "व्हाट्सऐप",
     directions: "रास्ता देखें",
@@ -165,18 +166,23 @@ export const UI = {
     hours: "समय",
     today: "आज",
     phone: "फ़ोन",
+    drag: "घुमाकर देखिए",
     scroll: "नीचे देखें",
     kmAway: (n: string) => `${n} किमी`,
     outOf: "5 में से",
     lang: "भाषा",
     mapTitle: "नक्शा",
+    from: "",
+    pick: "एक चुनिए",
     people: "लोग",
     day: "दिन",
     time: "समय",
-    days: ["आज", "कल", "इस वीकेंड"],
-    times: ["सुबह", "दोपहर", "शाम"],
+    days: ["आज", "कल", "इस हफ़्ते"],
+    times: ["सुबह का बैच", "शाम का बैच"],
     send: "व्हाट्सऐप पर भेजें",
-    empty: "अपनी पसंद टैप करें, मैसेज यहां बनेगा",
-    items: "रुचि",
+    empty: "शुरू करने के लिए अपना लक्ष्य चुनें",
+    items: "आइटम",
+    closedDay: "बंद",
+    open24: "24 घंटे खुला",
   },
 };

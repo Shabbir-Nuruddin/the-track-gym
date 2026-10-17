@@ -1,5 +1,4 @@
-import "@fontsource/mukta/600.css";
-import "@fontsource/mukta/800.css";
+import "@fontsource/bebas-neue/400.css";
 import type { Site } from "./lib";
 
 export const SITE: Site = {
@@ -18,49 +17,65 @@ export const SITE: Site = {
   "lon": 77.0906387,
   "hours": [
     [
-      9,
-      21
+      [
+        9,
+        21
+      ]
     ],
     [
-      6,
-      22
+      [
+        6,
+        22
+      ]
     ],
     [
-      6,
-      22
+      [
+        6,
+        22
+      ]
     ],
     [
-      6,
-      22
+      [
+        6,
+        22
+      ]
     ],
     [
-      6,
-      22
+      [
+        6,
+        22
+      ]
     ],
     [
-      6,
-      22
+      [
+        6,
+        22
+      ]
     ],
     [
-      6,
-      22
+      [
+        6,
+        22
+      ]
     ]
   ],
   "theme": {
-    "dark": false,
-    "bg": "#ffffff",
-    "bg2": "#f4f4f2",
-    "panel": "#ffffff",
-    "ink": "#111111",
-    "ink2": "#4b4b4b",
-    "ink3": "#858585",
-    "line": "#e4e4e0",
-    "onAccent": "#ffffff",
-    "display": "Mukta",
-    "weight": 800,
-    "upper": false,
-    "accent": "#a16207"
+    "dark": true,
+    "bg": "#100a06",
+    "bg2": "#18130f",
+    "panel": "#1e1915",
+    "ink": "#f6eee7",
+    "ink2": "#c3bcb6",
+    "ink3": "#88817b",
+    "line": "#2a2521",
+    "accent": "#ff7a1f",
+    "onAccent": "#291405",
+    "display": "Bebas Neue",
+    "weight": 400,
+    "upper": true
   },
+  "scene": "plates",
+  "align": "right",
   "hero": {
     "title": [
       {
@@ -76,13 +91,7 @@ export const SITE: Site = {
       "en": "4.6 on Google from 355 reviews. Members write about owner Pooja's diet and water plans, coaches Mohit and Manish and one of the cleanest gyms they have seen.",
       "hi": "गूगल पर 355 रिव्यू से 4.6। मेंबर मालिक पूजा के डाइट और पानी के प्लान, कोच मोहित और मनीष और अपने देखे सबसे साफ़ जिमों में से एक के बारे में लिखते हैं।"
     },
-    "fallback": "/img/p2.jpg",
-    "slides": [
-      "/img/p2.jpg",
-      "/img/p16.jpg",
-      "/img/p9.jpg",
-      "/img/p7.jpg"
-    ]
+    "fallback": "/img/p2.jpg"
   },
   "marquee": [
     "Weight loss",
@@ -325,5 +334,40 @@ export const SITE: Site = {
       "en": "Hi The Track Gym, I'd like to enquire:",
       "hi": "नमस्ते द ट्रैक जिम, मुझे जानकारी चाहिए:"
     }
-  }
+  },
+  "story": [
+    {
+      "kicker": {
+        "en": "Results",
+        "hi": "नतीजे"
+      },
+      "title": {
+        "en": "Joined at 94.9 kg. 7-8 kg down.",
+        "hi": "94.9 किलो पर जॉइन किया, 7-8 किलो कम।"
+      },
+      "quote": "I lost 7-8 kgs and I have had guidance from various trainers on the floor (Mohit bhai, Jevonne, Manish and Lokesh)."
+    },
+    {
+      "kicker": {
+        "en": "Diet",
+        "hi": "डाइट"
+      },
+      "title": {
+        "en": "Diet plans from Pooja ma'am.",
+        "hi": "पूजा मैम से डाइट प्लान।"
+      },
+      "quote": "Guidance and Diet plans shared by Pooja ma’am have really helped me reach nearer to achieving my fitness goals."
+    },
+    {
+      "kicker": {
+        "en": "Vibe",
+        "hi": "माहौल"
+      },
+      "title": {
+        "en": "Everyone minds their own.",
+        "hi": "सब अपनी ट्रेनिंग पर ध्यान देते हैं।"
+      },
+      "quote": "Personally I loved the vibe, everyone minds their own, which is quite important if you’re focused on what you’re doing."
+    }
+  ]
 };

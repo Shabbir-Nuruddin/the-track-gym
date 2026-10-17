@@ -6,9 +6,9 @@ import { UI, bi, type Lang } from "../lib";
 import { EASE, Heading, Rise, waLink } from "./ui";
 
 /*
- * Tap-to-build: the visitor picks who it is for, ticks what they want to work on,
- * sets a day and time, and watches a ticket fill up beside it. The ticket is the
- * WhatsApp message. No prices, nothing invented: only what the visitor chose.
+ * Tap-to-build: the guest picks a spot, taps dishes from the reviews, sets the
+ * headcount and time, and watches a ticket fill up beside it. The ticket is the
+ * WhatsApp message. No prices, nothing invented: only what the guest chose.
  */
 
 const WRAP = "relative mx-auto max-w-[1280px] px-4 sm:px-8";
@@ -37,12 +37,12 @@ export function Build({ lang, reduced, index }: { lang: Lang; reduced: boolean; 
   const [day, setDay] = useState<number | null>(null);
   const [time, setTime] = useState<number | null>(null);
 
-  const toggle = (i: number) => setQty((q) => q.map((v, j) => (j === i ? (v ? 0 : 1) : v)));
+  const bump = (i: number, d: number) => setQty((q) => q.map((v, j) => (j === i ? Math.max(0, Math.min(20, v + d)) : v)));
   const chosen = (b.items ?? []).map((it, i) => ({ name: bi(it, lang), n: qty[i] })).filter((x) => x.n > 0);
 
   const lines: [string, string][] = [];
   if (b.pick && pick !== null) lines.push([bi(b.pick.label, lang), bi(b.pick.options[pick].name, lang)]);
-  if (chosen.length) lines.push([t.items, chosen.map((x) => x.name).join(", ")]);
+  if (chosen.length) lines.push([t.items, chosen.map((x) => `${x.n}× ${x.name}`).join(", ")]);
   if (b.people) lines.push([t.people, String(people)]);
   if (b.when && (day !== null || time !== null)) lines.push([`${t.day} / ${t.time}`, [day !== null ? t.days[day] : "", time !== null ? t.times[time] : ""].filter(Boolean).join(", ")]);
   const msg = [bi(b.hello, lang), ...lines.map(([k, v]) => `• ${k}: ${v}`)].join("\n");
@@ -50,10 +50,17 @@ export function Build({ lang, reduced, index }: { lang: Lang; reduced: boolean; 
   const steps = [b.pick ? pick !== null : null, b.items ? chosen.length > 0 : null, b.people ? true : null, b.when ? day !== null && time !== null : null].filter((x) => x !== null) as boolean[];
   const done = steps.filter(Boolean).length;
   let n = 0;
+  const bgPhoto = SITE.gallery.photos[3]?.src;
 
   return (
-    <section className="py-20 lg:py-32">
-      <div className={WRAP}>
+    <section className="relative overflow-hidden py-20 lg:py-32">
+      {bgPhoto && (
+        <div aria-hidden className="pointer-events-none absolute inset-0">
+          <img src={bgPhoto} alt="" loading="lazy" className="h-full w-full object-cover brightness-[0.45] saturate-[0.8]" />
+          <div className="absolute inset-0 bg-bg/85" />
+        </div>
+      )}
+      <div className={`${WRAP} relative`}>
         <Heading index={index} title={bi(b.title, lang)} body={bi(b.body, lang)} reduced={reduced} />
         <div className="mt-12 grid gap-10 lg:grid-cols-[1.35fr_1fr] lg:gap-16">
           <div className="space-y-8">
@@ -71,7 +78,7 @@ export function Build({ lang, reduced, index }: { lang: Lang; reduced: boolean; 
                         whileTap={reduced ? undefined : { scale: 0.97 }}
                         className={`relative overflow-hidden rounded-2xl border p-5 text-left transition-colors duration-300 ${on ? "border-accent bg-accent/10" : "border-line bg-panel hover:border-ink-3"}`}
                       >
-                        <span className={`text-[12px] font-bold tracking-[0.2em] ${on ? "text-accent" : "text-ink-3"}`}>{String(i + 1).padStart(2, "0")}</span>
+                        <span className={`text-[12px] font-bold tracking-[0.2em] ${on ? "text-accent" : "text-ink-3"}`}>P{i + 1}</span>
                         <span className="mt-6 block font-display text-[26px] leading-[1.05]">{bi(o.name, lang)}</span>
                         {o.note && <span className="mt-2 block text-[14px] leading-snug text-ink-2">{bi(o.note, lang)}</span>}
                         <AnimatePresence>
@@ -96,14 +103,30 @@ export function Build({ lang, reduced, index }: { lang: Lang; reduced: boolean; 
 
             {b.items && (
               <Step n={++n} label={t.items} done={chosen.length > 0}>
-                <div className="flex flex-wrap gap-2">
+                <ul className="grid gap-2 sm:grid-cols-2">
                   {b.items.map((it, i) => (
-                    <button key={it.en} type="button" aria-pressed={qty[i] > 0} onClick={() => toggle(i)} className={`${CHIP} inline-flex items-center gap-2 ${qty[i] ? "border-accent bg-accent text-on-accent" : "border-line text-ink hover:border-ink-3"}`}>
-                      {qty[i] > 0 && <Check size={15} weight="bold" />}
-                      {bi(it, lang)}
-                    </button>
+                    <li key={it.en} className={`flex items-center justify-between gap-3 rounded-xl border py-2 pl-4 pr-2 transition-colors duration-300 ${qty[i] ? "border-accent/60 bg-accent/5" : "border-line bg-panel"}`}>
+                      <button type="button" onClick={() => bump(i, 1)} className="min-w-0 flex-1 py-1.5 text-left text-[16px] leading-tight text-ink">
+                        {bi(it, lang)}
+                      </button>
+                      <span className="flex shrink-0 items-center gap-1">
+                        {qty[i] > 0 && (
+                          <button type="button" aria-label={`−1 ${it.en}`} onClick={() => bump(i, -1)} className="grid h-9 w-9 place-items-center rounded-full text-ink-2 hover:bg-line">
+                            <Minus size={16} weight="bold" />
+                          </button>
+                        )}
+                        {qty[i] > 0 && (
+                          <motion.span key={qty[i]} initial={reduced ? false : { y: -8, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="w-6 text-center text-[16px] font-semibold tabular-nums text-accent">
+                            {qty[i]}
+                          </motion.span>
+                        )}
+                        <button type="button" aria-label={`+1 ${it.en}`} onClick={() => bump(i, 1)} className="grid h-9 w-9 place-items-center rounded-full bg-accent text-on-accent active:scale-95">
+                          <Plus size={16} weight="bold" />
+                        </button>
+                      </span>
+                    </li>
                   ))}
-                </div>
+                </ul>
               </Step>
             )}
 
@@ -145,7 +168,7 @@ export function Build({ lang, reduced, index }: { lang: Lang; reduced: boolean; 
 
           {/* the ticket: fills as the guest taps, and is exactly what gets sent */}
           <Rise reduced={reduced} className="lg:sticky lg:top-32 lg:self-start">
-            <div className="rounded-3xl border border-line bg-panel p-6">
+            <div className="rounded-3xl border border-line bg-panel p-6 shadow-[0_30px_80px_-40px_var(--accent)]">
               <div className="flex items-center justify-between text-[12px] font-semibold tracking-[0.18em] text-ink-3">
                 <span>{SITE.name.toUpperCase()}</span>
                 <span className="tabular-nums text-accent">
@@ -183,9 +206,9 @@ export function Build({ lang, reduced, index }: { lang: Lang; reduced: boolean; 
                 href={waLink(msg)}
                 target="_blank"
                 rel="noreferrer"
-                className="mt-6 flex w-full items-center justify-center gap-2.5 rounded-full bg-ink py-4 text-[17px] font-semibold text-bg outline-none transition-colors duration-300 hover:bg-accent focus-visible:bg-accent active:scale-[0.98]"
+                className="mt-6 flex w-full items-center justify-center gap-2.5 rounded-full bg-wa py-4 text-[17px] font-semibold text-[#062a14] shadow-[0_16px_36px_-14px_rgb(37_211_102/0.7)] transition hover:-translate-y-0.5 active:scale-[0.98]"
               >
-                <WhatsappLogo size={22} weight="fill" className="text-wa" />
+                <WhatsappLogo size={22} weight="fill" />
                 {t.send}
               </a>
             </div>
