@@ -1,217 +1,97 @@
-import { useFrame, useThree } from "@react-three/fiber";
-import { useMemo, useRef } from "react";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { Environment, Lightformer } from "@react-three/drei";
+import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { SITE } from "../content";
-import { CamScroll, Embers, Stage, clamp01, glowTexture, rng, smooth, type SceneProps } from "./kit";
-import { ACCENT, Barbell, Dumbbell, FOG, Kettlebell, Plate } from "./gym";
+import { clamp01, smooth, type SceneProps } from "./kit";
+import { ACCENT, Barbell, Dumbbell, Kettlebell } from "./gym";
 import { Gada } from "./gada";
 
 /*
- * Iron storm: the gym's hero lift drops out of the sky and slams down, the floor
- * shakes, chalk bursts, and a ring of dumbbells, plates and kettlebells crashes in
- * around it. Scrolling spins the storm up and presses the lift overhead; at the end
- * the whole ring blows out past the camera.
+ * One hero lift, picked by the scene key, sized to fit the screen. It rises in on load,
+ * floats gently, and turns and lifts as you scroll. Nothing else in the scene, so it
+ * stays smooth on phones; rendering stops once the hero has scrolled away.
  */
 
-const DROP = 0.35;
-const LAND = 1.0;
-const FLOOR = -0.78;
+const k = SITE.scene;
+// footprint of each lift at scale 1: [width, height]
+const SIZE: [number, number] = k === "kettlebell" ? [1.6, 2.3] : k === "dumbbells" ? [2.6, 0.8] : k === "gada" ? [2.6, 4.8] : [4.7, 1.9];
 
-const backOut = (x: number) => {
-  const c = 1.9;
-  const t = x - 1;
-  return 1 + (c + 1) * t * t * t + c * t * t;
-};
-
-function Core({ progress, still }: { progress: SceneProps["progress"]; still: boolean }) {
-  const g = useRef<THREE.Group>(null);
-  const k = SITE.scene;
-  useFrame(({ clock }) => {
-    if (!g.current) return;
-    const t = still ? 99 : clock.elapsedTime;
-    const fall = clamp01((t - DROP) / (LAND - DROP));
-    const drop = (1 - fall * fall) * 7;
-    const e = t - LAND;
-    const bounce = e > 0 ? Math.exp(-e * 7) * Math.abs(Math.sin(e * 16)) * 0.22 : 0;
-    const p = smooth(0.03, 0.85, progress.get());
-    g.current.position.y = drop + bounce + p * 0.6 + (e > 0 ? Math.sin(t * 1.1) * 0.04 : 0);
-    g.current.rotation.set(0.14 + p * 0.5, -0.45 + (e > 0 ? e * 0.12 : 0) + p * 2.4, Math.sin(t * 0.6) * 0.05);
-    g.current.scale.setScalar(1 + p * 0.14);
-  });
-  let body;
+function Lift() {
   if (k === "kettlebell")
-    body = (
-      <group position={[0, 1.15, 0]}>
+    return (
+      <group position={[0, 1.2, 0]}>
         <Kettlebell size={1.1} />
       </group>
     );
-  else if (k === "dumbbells") body = <Dumbbell size={1.75} />;
-  else if (k === "gada")
-    body = (
-      <group scale={0.9}>
-        <Gada progress={progress} />
-      </group>
-    );
-  else
-    body = (
-      <group scale={0.8}>
-        <Barbell />
-      </group>
-    );
-  return <group ref={g}>{body}</group>;
+  if (k === "dumbbells") return <Dumbbell size={1.75} />;
+  if (k === "gada") return null;
+  return <Barbell />;
 }
 
-/** Landing shockwave, chalk cloud and a short camera shake. */
-function Impact({ still }: { still: boolean }) {
-  const ring = useRef<THREE.Mesh>(null);
-  const ring2 = useRef<THREE.Mesh>(null);
-  const puffs = useRef<(THREE.Sprite | null)[]>([]);
-  const dirs = useMemo(() => {
-    const r = rng(5);
-    return Array.from({ length: 26 }, () => {
-      const a = r() * Math.PI * 2;
-      return [Math.cos(a), r(), Math.sin(a), 0.5 + r() * 0.9] as const;
-    });
-  }, []);
-  const tex = glowTexture();
-  const { camera } = useThree();
-  useFrame(({ clock }) => {
-    const e = (still ? 99 : clock.elapsedTime) - LAND;
-    const on = e > 0 && e < 1.8;
-    [ring.current, ring2.current].forEach((m, j) => {
-      if (!m) return;
-      const k = clamp01((e - j * 0.12) / (0.8 + j * 0.3));
-      m.visible = on && k > 0;
-      m.scale.setScalar(0.4 + k * (5 + j * 2));
-      (m.material as THREE.MeshBasicMaterial).opacity = (1 - k) * (j ? 0.5 : 0.95);
-    });
-    dirs.forEach(([x, y, z, s], i) => {
-      const sp = puffs.current[i];
-      if (!sp) return;
-      const k = clamp01(e / 1.7);
-      sp.visible = on;
-      const d = (1 - Math.pow(1 - k, 3)) * 2.8 * s;
-      sp.position.set(x * d, FLOOR + y * d * 0.5, z * d);
-      const sc = 0.5 + k * 2;
-      sp.scale.set(sc, sc, 1);
-      (sp.material as THREE.SpriteMaterial).opacity = (1 - k) * 0.4;
-    });
-    if (e > 0 && e < 0.5) {
-      const a = Math.exp(-e * 9) * 0.16;
-      camera.position.x += (Math.random() - 0.5) * a;
-      camera.position.y += (Math.random() - 0.5) * a;
-    }
-  });
-  return (
-    <group>
-      {[ring, ring2].map((r, j) => (
-        <mesh key={j} ref={r} position={[0, FLOOR, 0]} rotation={[-Math.PI / 2, 0, 0]} visible={false}>
-          <ringGeometry args={[0.9, 1, 96]} />
-          <meshBasicMaterial color={j ? "#ffffff" : ACCENT} transparent opacity={0} toneMapped={false} blending={THREE.AdditiveBlending} depthWrite={false} side={THREE.DoubleSide} />
-        </mesh>
-      ))}
-      {dirs.map((_, i) => (
-        <sprite key={i} ref={(n) => void (puffs.current[i] = n)} visible={false}>
-          <spriteMaterial map={tex} color="#f2efe8" transparent depthWrite={false} opacity={0} />
-        </sprite>
-      ))}
-    </group>
-  );
-}
+function Hero({ progress, side, still, interactive }: SceneProps) {
+  const g = useRef<THREE.Group>(null);
+  const spin = useRef<THREE.Group>(null);
+  const { viewport, size, pointer } = useThree();
+  const narrow = size.width < 768;
+  const fit = Math.min((viewport.width * (narrow ? 0.86 : 0.4)) / SIZE[0], (viewport.height * (narrow ? 0.4 : 0.6)) / SIZE[1]);
+  const x = narrow ? 0 : (side === "left" ? 1 : -1) * viewport.width * 0.24;
+  const y = narrow ? viewport.height * 0.17 : 0;
 
-type Item = { kind: number; r: number; a: number; y: number; s: number; spin: [number, number, number]; d: number; col: string; v: number };
-
-function Piece({ it }: { it: Item }) {
-  if (it.kind === 0) return <Dumbbell size={it.s * 1.15} color={it.col} />;
-  if (it.kind === 1) return <Plate R={it.s * 1.25} w={it.s * 0.24} color={it.col === ACCENT ? ACCENT : undefined} />;
-  return (
-    <group position={[0, it.s * 0.9, 0]}>
-      <Kettlebell size={it.s * 0.75} color={it.col} />
-    </group>
-  );
-}
-
-/** The ring of free weights: crash in on load, orbit, dodge the cursor, spin up and blow out on scroll. */
-function Storm({ progress, lite, still, interactive, side }: Omit<SceneProps, "progress"> & { progress: SceneProps["progress"] }) {
-  const items = useMemo<Item[]>(() => {
-    const r = rng(21);
-    const n = lite ? 12 : 24;
-    return Array.from({ length: n }, (_, i) => ({
-      kind: i % 3,
-      r: 2.1 + r() * 1.5,
-      a: (i / n) * Math.PI * 2 + r() * 0.3,
-      y: (r() - 0.5) * 2.8,
-      s: 0.32 + r() * 0.22,
-      spin: [(r() - 0.5) * 1.8, (r() - 0.5) * 1.8, (r() - 0.5) * 1.8],
-      d: LAND - 0.15 + r() * 0.8,
-      col: r() > 0.45 ? ACCENT : "#c3c8ce",
-      v: 0.12 + r() * 0.12,
-    }));
-  }, [lite]);
-  const refs = useRef<(THREE.Group | null)[]>([]);
-  const ang = useMemo(() => items.map((it) => it.a), [items]);
-  const tmp = useMemo(() => new THREE.Vector3(), []);
-  const { pointer, size } = useThree();
-  const rigX = size.width < 768 ? 0 : side === "left" ? 1.9 : -1.9;
   useFrame(({ clock }, dt) => {
+    if (!g.current || !spin.current) return;
     const t = still ? 99 : clock.elapsedTime;
-    const p = progress.get();
-    const up = smooth(0.05, 0.7, p);
-    const ex = smooth(0.74, 0.98, p);
-    const step = Math.min(dt, 0.05);
-    items.forEach((it, i) => {
-      const g = refs.current[i];
-      if (!g) return;
-      if (!still) ang[i] += step * (it.v + up * 0.9);
-      const k = clamp01((t - it.d) / 1.1);
-      const far = 1 - backOut(k);
-      const rad = it.r * (1 - 0.28 * up) * (1 + ex * 1.9);
-      tmp.set(
-        Math.cos(ang[i]) * rad * 0.82 + far * Math.cos(it.a) * 10,
-        it.y * (1 - 0.35 * up) + Math.sin(t * 0.8 + i) * 0.12 + far * (it.y > 0 ? 8 : -8),
-        Math.sin(ang[i]) * rad + ex * 4 - far * 12,
-      );
-      if (interactive) {
-        const dx = tmp.x - (pointer.x * 4.1 - rigX);
-        const dy = tmp.y - pointer.y * 2.3;
-        const dist = Math.hypot(dx, dy) + 0.001;
-        const push = Math.max(0, 1.5 - dist) * 1.1;
-        tmp.x += (dx / dist) * push;
-        tmp.y += (dy / dist) * push;
-      }
-      if (k < 1 || still) g.position.copy(tmp);
-      else g.position.lerp(tmp, 0.18);
-      if (still) g.rotation.set(it.spin[0] * 2, it.spin[1] * 2, it.spin[2] * 2);
-      else {
-        const sp = step * (1 + up * 3 + ex * 4);
-        g.rotation.x += it.spin[0] * sp;
-        g.rotation.y += it.spin[1] * sp;
-        g.rotation.z += it.spin[2] * sp;
-      }
-    });
+    const p = smooth(0, 0.9, progress.get());
+    const intro = 1 - Math.pow(1 - clamp01(t / 1.4), 3);
+    g.current.position.set(x, y - (1 - intro) * 1.2 + Math.sin(t * 0.9) * 0.06 + p * 0.35, 0);
+    g.current.scale.setScalar(fit * (0.85 + intro * 0.15) * (1 + p * 0.12));
+    const e = 1 - Math.pow(0.001, dt);
+    const px = interactive ? pointer.x : 0;
+    const py = interactive ? pointer.y : 0;
+    spin.current.rotation.y = THREE.MathUtils.lerp(spin.current.rotation.y, -0.55 + Math.sin(t * 0.35) * 0.12 + p * Math.PI * 1.1 + px * 0.3, e);
+    spin.current.rotation.x = THREE.MathUtils.lerp(spin.current.rotation.x, 0.22 + p * 0.25 - py * 0.12, e);
   });
+
   return (
-    <group>
-      {items.map((it, i) => (
-        <group key={i} ref={(n) => void (refs.current[i] = n)} position={[0, 40, 0]}>
-          <Piece it={it} />
-        </group>
-      ))}
+    <group ref={g}>
+      <group ref={spin}>{k === "gada" ? <Gada progress={progress} /> : <Lift />}</group>
     </group>
   );
 }
 
 export default function IronScene(props: SceneProps) {
+  const wrap = useRef<HTMLDivElement>(null);
+  const [onScreen, setOnScreen] = useState(true);
+  useEffect(() => {
+    const el = wrap.current;
+    if (!el) return;
+    const io = new IntersectionObserver(([en]) => setOnScreen(en.isIntersecting));
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+
   return (
-    <Stage {...props} fog={FOG} env="#161616" warm="#fff0de" camera={[0, 0.7, 8.4]} scale={0.9}>
-      <CamScroll progress={props.progress} from={[0, 0.7, 8.4]} to={[0.25, 0.1, 6.6]} />
-      <spotLight position={[0, 7, 4]} angle={0.55} penumbra={0.9} intensity={70} />
-      <pointLight position={[-2.8, 1.5, -2]} intensity={22} distance={10} color={ACCENT} />
-      <pointLight position={[2.8, -1.2, 2.5]} intensity={9} distance={9} color="#ffffff" />
-      <Core progress={props.progress} still={props.still} />
-      <Impact still={props.still} />
-      <Storm {...props} />
-      <Embers count={props.lite ? 30 : 90} origin={[0, -2.2, 0]} area={[6, 1, 3]} rise={4.5} color={ACCENT} size={0.045} speed={0.06} />
-    </Stage>
+    <div ref={wrap} className="h-full w-full">
+      <Canvas
+        frameloop={props.still ? "demand" : onScreen ? "always" : "never"}
+        dpr={props.lite ? 1 : [1, 1.5]}
+        camera={{ position: [0, 0.4, 8], fov: 32 }}
+        gl={{ antialias: true, alpha: true, powerPreference: "high-performance" }}
+        style={{ touchAction: "pan-y" }}
+      >
+        <ambientLight intensity={0.55} />
+        <directionalLight position={[3, 5, 6]} intensity={2.4} color="#fff3e4" />
+        <directionalLight position={[-5, 2, 3]} intensity={0.9} />
+        <pointLight position={[0, 0.5, -3]} intensity={30} distance={10} color={ACCENT} />
+        <Environment resolution={128} frames={1}>
+          <color attach="background" args={["#2a2a2a"]} />
+          <Lightformer form="rect" intensity={4} color="#fff0de" position={[0, 6, 3]} scale={[12, 3, 1]} rotation={[Math.PI / 2, 0, 0]} />
+          <Lightformer form="rect" intensity={2.5} position={[-6, 1, 2]} scale={[3, 10, 1]} rotation={[0, Math.PI / 2, 0]} />
+          <Lightformer form="rect" intensity={2} position={[6, 0, 2]} scale={[3, 10, 1]} rotation={[0, -Math.PI / 2, 0]} />
+          <Lightformer form="rect" intensity={1.5} position={[0, 0, 8]} scale={[10, 4, 1]} />
+        </Environment>
+        <Hero {...props} />
+      </Canvas>
+    </div>
   );
 }

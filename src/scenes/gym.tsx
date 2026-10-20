@@ -11,7 +11,7 @@ export const FOG = SITE.theme.bg;
 export function Steel({ rough = 0.22 }: { rough?: number }) {
   return <meshStandardMaterial color="#d9dde2" metalness={1} roughness={rough} envMapIntensity={1.2} />;
 }
-export function Rubber({ color = "#151515" }: { color?: string }) {
+export function Rubber({ color = "#2c2c2f" }: { color?: string }) {
   return <meshStandardMaterial color={color} roughness={0.78} metalness={0.05} side={THREE.DoubleSide} />;
 }
 export function Paint({ color = ACCENT }: { color?: string }) {

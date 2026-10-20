@@ -89,8 +89,8 @@ export default function App() {
   }, [lang]);
 
   const enter = (d: number) => ({
-    initial: reduced ? false : ({ opacity: 0, y: 26, filter: "blur(8px)" } as const),
-    animate: { opacity: 1, y: 0, filter: "blur(0px)" },
+    initial: reduced ? false : ({ opacity: 0, y: 26 } as const),
+    animate: { opacity: 1, y: 0 },
     transition: { duration: 0.9, ease: EASE, delay: 0.15 + d },
   });
 
@@ -111,7 +111,7 @@ export default function App() {
     <div className="relative">
       <header className="fixed inset-x-0 top-0 z-40">
         <p className="bg-accent px-4 py-1.5 text-center text-[13px] font-medium text-on-accent">{bi(SITE.banner, lang)}</p>
-        <div className="border-b border-line bg-bg/85 backdrop-blur-md">
+        <div className="border-b border-line bg-bg/95">
           <div className="mx-auto flex max-w-[1400px] items-center justify-between gap-4 px-4 py-3 sm:px-8">
             <a href="#top" className="min-w-0 leading-none">
               <span className="block truncate font-display text-[24px] leading-none text-ink">{SITE.name}</span>
@@ -137,9 +137,9 @@ export default function App() {
             initial={reduced ? false : { scale: 1.14, opacity: 0 }}
             animate={{ scale: 1.04, opacity: 1 }}
             transition={{ duration: 2.4, ease: EASE }}
-            className="absolute inset-0 h-full w-full object-cover blur-[2px] brightness-[0.42] saturate-[0.8]"
+            className="absolute inset-0 h-full w-full object-cover"
           />
-          <div className="pointer-events-none absolute inset-0 bg-bg/45" />
+          <div className="pointer-events-none absolute inset-0 bg-bg/70" />
           <div className="absolute inset-0">
             <SceneBoundary>
               <Suspense fallback={null}>
@@ -147,7 +147,6 @@ export default function App() {
               </Suspense>
             </SceneBoundary>
           </div>
-          <div className="grain pointer-events-none absolute inset-0 opacity-40 mix-blend-overlay" />
 
           <motion.div
             style={reduced ? undefined : { opacity: copyOpacity, y: copyY }}
@@ -155,7 +154,7 @@ export default function App() {
           >
             <div className="pointer-events-auto max-w-[600px]">
               {SITE.hours.length > 0 && (
-              <motion.p {...enter(0)} className={`mb-5 inline-flex items-center gap-2.5 rounded-full border border-line bg-bg/75 px-3.5 py-1.5 text-[14px] text-ink-2 backdrop-blur-sm`}>
+              <motion.p {...enter(0)} className={`mb-5 inline-flex items-center gap-2.5 rounded-full border border-line bg-bg/90 px-3.5 py-1.5 text-[14px] text-ink-2`}>
                 <span className={`live-dot relative inline-block h-2 w-2 rounded-full ${state.open ? "bg-[#3ddc84] text-[#3ddc84]" : "bg-ink-3 text-ink-3"}`} />
                 {state.open ? t.open(state.at < 0 ? "" : fmtHour(state.at)) : t.closed(fmtHour(state.at))}
               </motion.p>
@@ -235,7 +234,7 @@ export default function App() {
         <WhatsappLogo size={28} weight="fill" />
       </a>
 
-      <div className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-[1.4fr_1fr] gap-2 border-t border-line bg-bg/90 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-md md:hidden">
+      <div className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-[1.4fr_1fr] gap-2 border-t border-line bg-bg/90 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:hidden">
         <CallButton label={t.callShort} className="whitespace-nowrap !px-4 !py-3" />
         <a href={waLink(wa)} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center gap-2 rounded-full bg-wa py-3 text-[16px] font-semibold text-[#062a14] active:scale-[0.98]">
           <WhatsappLogo size={20} weight="fill" />
